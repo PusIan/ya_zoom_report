@@ -10,14 +10,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class ReportManager implements IReportManager {
+public class ReportGenerator implements IReportGenerator {
     private final Set<User> users;
     private final Map<Conference, Map<User, Visit>> userVisits;
     private final String DELIMITER = ",";
 
-    public ReportManager(IDataProvider dataProvider) {
+    public ReportGenerator(IDataProvider dataProvider) {
         this.users = dataProvider.getUsers();
-        this.userVisits = dataProvider.getConferencesVisits();
+        this.userVisits = dataProvider.getZoomConferenceVisits();
     }
 
     @Override

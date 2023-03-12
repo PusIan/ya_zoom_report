@@ -10,5 +10,5 @@ import java.util.Set;
 public interface IDataProvider {
     Set<User> getUsers();
 
-    Map<Conference, Map<User, Visit>> getConferencesVisits();
+    Map<Conference, Map<User, Visit>> getZoomConferenceVisits();
 }

@@ -1,7 +1,4 @@
-import service.DataProvider;
-import service.IDataProvider;
-import service.IReportManager;
-import service.ReportManager;
+import service.*;
 
 public class Main {
     private static String zoomReportFolder = "";
@@ -9,8 +6,9 @@ public class Main {
 
     public static void main(String[] args) {
         parseArgs(args);
-        IDataProvider dataProvider = new DataProvider(zoomReportFolder, participantsFileName);
-        IReportManager manager = new ReportManager(dataProvider);
+        IReader reader = new Reader(zoomReportFolder, participantsFileName);
+        IDataProvider dataProvider = new DataProvider(reader);
+        IReportGenerator manager = new ReportGenerator(dataProvider);
         for (String line : manager.generateReport()) {
             System.out.println(line);
         }

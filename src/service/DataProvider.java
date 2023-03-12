@@ -6,10 +6,6 @@ import model.User;
 import model.Visit;
 import model.csv.UserVisitRaw;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -24,41 +20,19 @@ public class DataProvider implements IDataProvider {
     private final int CONF_LINE_IDX_START = 1;
     private final int VISIT_LINE_IDX_START = 4;
     private final String REGEX_DELIMITER = "\\,";
-    private final String zoomReportFolder;
-    private final String participantsFileName;
+
+    private final IReader reader;
 
     private Set<User> users;
     private Map<Conference, Map<User, Visit>> userVisits;
 
-    public DataProvider(String zoomReportFolder, String participantsFileName) {
-        this.zoomReportFolder = zoomReportFolder;
-        this.participantsFileName = participantsFileName;
+    public DataProvider(IReader reader) {
+        this.reader = reader;
     }
 
-    public static Collection<String> readFileContents(String fileName, int startLine, int numberOfLines) {
-        return readFileContents(fileName, startLine)
-                .stream()
-                .limit(numberOfLines)
-                .collect(Collectors.toList());
-    }
 
-    public static Collection<String> readFileContents(String fileName, int startLine) {
-        return readFileContents(fileName)
-                .stream()
-                .skip(startLine)
-                .collect(Collectors.toList());
-    }
-
-    public static Collection<String> readFileContents(String fileName) {
-        try {
-            return new ArrayList<>(Files.readAllLines(Path.of(fileName)));
-        } catch (IOException e) {
-            throw new RuntimeException("Can't read file " + fileName);
-        }
-    }
-
-    private Set<User> parseUserFile(String fileName) {
-        Collection<String> fileContent = readFileContents(fileName);
+    private Set<User> parseUserContent() {
+        Collection<String> fileContent = reader.readParticipantsFile();
         Set<User> users = new LinkedHashSet<>();
         for (String s : fileContent) {
             String[] splittedLine = s.split(REGEX_DELIMITER);
@@ -75,17 +49,17 @@ public class DataProvider implements IDataProvider {
         return users;
     }
 
-    private Map<Conference, Map<User, Visit>> parseConferenceFiles(String path) {
-        File[] files = getCsvFileList(path);
+    private Map<Conference, Map<User, Visit>> parseZoomReportContents() {
+        List<List<String>> zoomReports = reader.readZoomReports();
         HashMap<Conference, Map<User, Visit>> userVisits = new HashMap<>();
-        for (File file : files) {
-            String conferenceLine = readFileContents(file.getAbsolutePath(), CONF_LINE_IDX_START, 1).stream().findFirst().get();
+        for (List<String> zoomReport : zoomReports) {
+            String conferenceLine = zoomReport.get(CONF_LINE_IDX_START);
             Conference conference = parseConferenceLine(conferenceLine);
             if (userVisits.containsKey(conference)) {
                 throw new RuntimeException("Duplications in conference id: " + conference.id());
             }
             userVisits.put(conference, new HashMap<>());
-            Collection<String> visitLines = readFileContents(file.getAbsolutePath(), VISIT_LINE_IDX_START);
+            Collection<String> visitLines = zoomReport.stream().skip(VISIT_LINE_IDX_START).collect(Collectors.toList());
             for (String visitLine : visitLines) {
                 UserVisitRaw userVisitRaw = parseUserVisit(visitLine);
                 Email email = new Email(userVisitRaw.email());
@@ -137,30 +111,19 @@ public class DataProvider implements IDataProvider {
         return str.equals("yes") || str.equals("true") || str.equals("да");
     }
 
-    private File[] getCsvFileList(String path) {
-        File home = new File(path);
-        if (home.isFile()) {
-            throw new RuntimeException("Path must be directory");
-        }
-        File[] files = home.listFiles((dir, name) -> name.endsWith(".csv"));
-        if (files.length == 0) {
-            throw new RuntimeException("Path " + path + " does not contain csv files");
-        }
-        return files;
-    }
 
     @Override
     public Set<User> getUsers() {
         if (this.users == null) {
-            this.users = this.parseUserFile(this.participantsFileName);
+            this.users = this.parseUserContent();
         }
         return this.users;
     }
 
     @Override
-    public Map<Conference, Map<User, Visit>> getConferencesVisits() {
+    public Map<Conference, Map<User, Visit>> getZoomConferenceVisits() {
         if (this.userVisits == null) {
-            this.userVisits = this.parseConferenceFiles(this.zoomReportFolder);
+            this.userVisits = this.parseZoomReportContents();
         }
         return this.userVisits;
     }
